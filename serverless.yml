@@ -1,0 +1,64 @@
+service: aws-culqi
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+
+package:
+  individually: true
+  exclude:
+    - "node_modules/eslint/**"
+    - "node_modules/jest/**"
+    - "node_modules/@shelf/jest-mongodb/**"
+    - "node_modules/@typescript-eslint/eslint-plugin/**"
+    - "node_modules/@ts-jest/**"
+
+functions:
+  findOneToken:
+    handler: src/tokens/functions/find-one-token.handler
+    package:
+      patterns:
+        - "!node_modules/yup/**"
+    environment:
+      MONGO_URL: ${env:MONGO_URL}
+      DB_NAME: ${env:DB_NAME}
+    events:
+      - http:
+          path: /tokens/{id}
+          method: GET
+          authorizer: authorizerFunc
+          cors: true
+          request:
+            parameters:
+              paths:
+                id: true
+
+  createToken:
+    handler: src/tokens/functions/create-token.handler
+    environment:
+      MONGO_URL: ${env:MONGO_URL}
+      DB_NAME: ${env:DB_NAME}
+    events:
+      - http:
+          path: /tokens
+          method: POST
+          authorizer: authorizerFunc
+          cors: true
+          request:
+            schemas:
+              application/json: ${file(./src/tokens/schemas/create_token_request.json)}
+
+  authorizerFunc:
+    handler: src/auth/functions/authorizer.handler
+    package:
+      patterns:
+        - "!node_modules/**"
+
+useDotenv: true
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-reqvalidator-plugin
+  - serverless-offline
+  - serverless-dotenv-plugin
